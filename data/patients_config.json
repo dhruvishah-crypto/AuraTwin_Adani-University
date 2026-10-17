@@ -1,0 +1,27 @@
+{
+  "generator": "generate_data.py",
+  "num_patients": 300,
+  "seed": 42,
+  "provenance": {
+    "patients_csv": "simulated",
+    "latent_truth_csv": "simulated (ground truth for event simulator only, not model feature)"
+  },
+  "schema": {
+    "observable_columns": [
+      "patient_id",
+      "age",
+      "sex",
+      "asthma_severity",
+      "prior_exacerbations_12m",
+      "controller_prescribed",
+      "baseline_resp_rate",
+      "baseline_spo2",
+      "comorbidities",
+      "pollution_sensitivity"
+    ],
+    "latent_columns": [
+      "patient_id",
+      "latent_vulnerability"
+    ]
+  }
+}
