@@ -1,0 +1,25 @@
+{
+  "dataset": "sample_pollution.csv",
+  "reference_benchmark": {
+    "agency": "Central Pollution Control Board (CPCB) / OpenAQ",
+    "station": "ITO, New Delhi (OpenAQ Location ID: 8118)",
+    "coordinates": {
+      "lat": 28.6287,
+      "lon": 77.2411
+    },
+    "url": "https://openaq.org or https://app.cpcbccr.com/AQI_India/",
+    "parameters": "pm25 (ug/m3), pm10 (ug/m3)"
+  },
+  "source_type": "sourced_sample (offline bundle)",
+  "rows": 1440,
+  "seed": 42,
+  "date_range": [
+    "2026-08-01 00:00:00",
+    "2026-09-29 23:00:00"
+  ],
+  "units": {
+    "pm25": "ug/m3",
+    "pm10": "ug/m3",
+    "aqi": "US EPA standard index (derived, separate from raw pm25)"
+  }
+}

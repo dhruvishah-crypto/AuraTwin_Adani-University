@@ -1,0 +1,26 @@
+{
+  "dataset": "patient_timeseries.csv",
+  "provenance": "simulated",
+  "total_rows": 432000,
+  "unique_patients": 300,
+  "columns": [
+    "patient_id",
+    "timestamp",
+    "respiratory_rate",
+    "heart_rate",
+    "hrv_rmssd_ms",
+    "spo2",
+    "sleep_hours",
+    "steps",
+    "controller_taken",
+    "rescue_puffs",
+    "symptom_score",
+    "provenance"
+  ],
+  "seed": 42,
+  "date_range": [
+    "2026-08-01 00:00:00",
+    "2026-09-29 23:00:00"
+  ],
+  "disclaimer": "All signals are synthetically simulated for research digital twin evaluation. Not real patient data."
+}
