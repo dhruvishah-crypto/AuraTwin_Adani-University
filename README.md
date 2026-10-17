@@ -73,3 +73,27 @@ python src/simulate_events.py --features data/features.csv --output data/labeled
 - **Strict Causal Sleep Alignment**: Daily `sleep_hours` values are mapped causally. At any hour $t$, `sleep_hours` reflects only the *most recently completed night*, preventing same-day or future lookahead leakage.
 - **Strict Causal Imputation**: Sensor missingness is filled solely via forward-fill within each individual patient (`groupby('patient_id').ffill()`) and falls back to that specific patient's static EHR baseline vitals. No global cross-patient means or future values are ever accessed.
 - **Git Hygiene**: Large generated CSVs (`patient_timeseries.csv`, `features.csv`, `labeled_dataset.csv`) are ignored in `.gitignore`. Lightweight sample files (`sample_*.csv`) are bundled for immediate repo inspection.
+
+
+## Model Evaluation & Calibration (Stage 4b)
+> **CLINICAL DISCLAIMER**: Results reflect learning on a simulated process, not real-world clinical events.
+
+### Core Metrics on Holdout Test Set (Calibrated Model)
+- **Selected Model**: `LOGISTIC_REGRESSION` (Selected via validation set PR-AUC)
+- **Explicit Decision Threshold**: `0.318` (Maximize F1 score on validation set (harmonic balance of precision and recall))
+- **Brier Score**: `0.0491` (vs. Base-Rate Baseline Brier `0.0790` — improved by `0.0299`)
+- **Calibration Slope & Intercept**: Slope = `0.9562` (ideal: 1.0), Intercept = `-0.0766` (ideal: 0.0)
+- **ROC-AUC**: `0.9307` [95% CI: `0.9068` – `0.9472`]
+- **PR-AUC**: `0.6095` [95% CI: `0.4821` – `0.6786`]
+- **Reconciled Classification**: Precision = `0.5247`, Recall = `0.6344`, F1 = `0.5743` (TP=3553, FP=3219, FN=2048, TN=55980)
+
+### Calibrated Demo Risk Bands (Test Observed Event Rates)
+- **Low Risk** (< `0.0591`): Observed event rate = `0.97%`
+- **Watch** (`0.0591` – `0.3265`): Observed event rate = `15.76%`
+- **High Risk** (>= `0.3265`): Observed event rate = `53.08%`
+- *Strict Monotonicity*: `Low (0.97%) < Watch (15.76%) < High (53.08%)`
+
+### Alert-Burden & Operational Simulation
+- **Episodes per Patient-Day** (6h cooldown): `0.0896`
+- **True Events Preceded within 24h**: `19.80%`
+- **Median Warning Lead Time**: `11.0 hours`
