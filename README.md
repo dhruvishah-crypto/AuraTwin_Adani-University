@@ -39,12 +39,37 @@ respiratwin/
 
 ## Quick Start
 ```bash
-# Install dependencies
+# 1. Install dependencies
 pip install -r requirements.txt
 
-# Run tests
-pytest
+# 2. Run unit tests & leakage validation
+pytest -v
 
-# Run the app
+# 3. Launch doctor-facing Streamlit dashboard
 streamlit run app.py
 ```
+
+## Data Pipeline & Full Cohort Regeneration
+To regenerate the full synthetic benchmark from scratch (300 patients × 60 days = 432,000 hourly rows):
+```bash
+# Generate synthetic patient EHR profiles (300 patients) and hidden latent truth
+python src/generate_data.py --num_patients 300 --seed 42 --output_dir data
+
+# Generate attributed pollution time-series (60 days hourly)
+python src/ingest_pollution.py --days 60 --city Delhi --seed 42 --output data/sample_pollution.csv
+
+# Simulate wearable & symptom signals with circadian rhythm & prodromal pre-attack drift
+python src/simulate_wearables.py --days 60 --seed 42 --output data/patient_timeseries.csv
+
+# Build strictly past-looking feature matrices (models/feature_columns.json)
+python src/build_features.py --output data/features.csv
+
+# Generate 24-hour exacerbation labels with stochastic shocks and config sidecar
+python src/simulate_events.py --features data/features.csv --output data/labeled_dataset.csv
+```
+
+## Simulation Realism & Causal Integrity
+- **Episodic Exacerbations & Prodromal Drift**: Simulated exacerbation events cluster into clinical episodes. In the **6 to 24 hours preceding attack onset**, physiological channels exhibit subtle prodromal drift (respiratory rate rise, heart rate elevation, SpO2 dip, autonomic vagal withdrawal in HRV, and creeping rescue inhaler use). This provides a demonstrable physical mechanism for early-warning risk forecasting.
+- **Strict Causal Sleep Alignment**: Daily `sleep_hours` values are mapped causally. At any hour $t$, `sleep_hours` reflects only the *most recently completed night*, preventing same-day or future lookahead leakage.
+- **Strict Causal Imputation**: Sensor missingness is filled solely via forward-fill within each individual patient (`groupby('patient_id').ffill()`) and falls back to that specific patient's static EHR baseline vitals. No global cross-patient means or future values are ever accessed.
+- **Git Hygiene**: Large generated CSVs (`patient_timeseries.csv`, `features.csv`, `labeled_dataset.csv`) are ignored in `.gitignore`. Lightweight sample files (`sample_*.csv`) are bundled for immediate repo inspection.

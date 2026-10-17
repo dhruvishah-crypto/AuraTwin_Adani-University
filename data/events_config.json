@@ -1,0 +1,26 @@
+{
+  "simulator": "src/simulate_events.py",
+  "target_label": "event_next_24h",
+  "seed": 42,
+  "event_rate": 0.0908,
+  "total_samples": 432000,
+  "coefficients_assumptions": {
+    "intercept": -7.4,
+    "beta_latent_vulnerability": 1.6,
+    "beta_prior_exacerbations": 0.28,
+    "beta_asthma_severity": 0.45,
+    "beta_pm25_exposure": 0.018,
+    "beta_missed_controller": 0.85,
+    "beta_rescue_puffs": 0.32,
+    "beta_symptom_score": 0.25,
+    "beta_rr_deviation": 0.15,
+    "beta_spo2_drop": 0.35,
+    "beta_hr_elevation": 0.04,
+    "noise_std": 0.45,
+    "shock_probability": 0.035,
+    "shock_magnitude_min": 1.2,
+    "shock_magnitude_max": 2.5
+  },
+  "provenance": "simulated",
+  "clinical_disclaimer": "Coefficients represent modeling assumptions for evaluating digital twin learning mechanisms on a simulated process. They are NOT clinical predictions or medical guidance."
+}

@@ -128,9 +128,31 @@ def simulate_single_patient_timeseries(
             daily_controller_taken[day_idx:end_day] = 1 if streak_adherent else 0
             day_idx = end_day
 
-    # Daily sleep hours (calculated once per day)
-    for d in range(n_days):
+    # Daily sleep hours: night d runs from (d-1) 23:00 to (d) 07:00
+    # Strict causal alignment: night d sleep is only available at wakeup (07:00 on day d)
+    # Prior to 07:00 on day d, the most recently completed night is night d-1
+    daily_sleep = np.zeros(n_days + 1, dtype=float)
+    for d in range(n_days + 1):
         daily_sleep[d] = round(float(np.clip(rng.normal(7.2, 0.9), 4.5, 9.8)), 1)
+
+    # --- Episodic Exacerbation & Prodromal Window Modeling ---
+    # Sample discrete exacerbation episode onsets based on severity & baseline history
+    base_lam = 0.8 if severity == "Mild" else (1.8 if severity == "Moderate" else 2.8)
+    if "High" in pollution_sens:
+        base_lam += 0.5
+    num_episodes = int(np.clip(rng.poisson(lam=base_lam), 0, 5))
+
+    episode_windows: List[Tuple[int, int]] = []
+    # Avoid first 30 hours so prodrome has room; ensure minimum 72h spacing between episodes
+    candidate_hours = list(range(30, n_hours - 48, 72))
+    rng.shuffle(candidate_hours)
+    for onset_candidate in candidate_hours[:num_episodes]:
+        # episode duration between 24 and 48 hours
+        duration = int(rng.integers(24, 48))
+        episode_windows.append((onset_candidate, min(n_hours, onset_candidate + duration)))
+
+    # Sort episodes chronologically
+    episode_windows.sort(key=lambda x: x[0])
 
     # Hourly signal simulation arrays
     hr_arr = np.zeros(n_hours, dtype=float)
@@ -142,6 +164,7 @@ def simulate_single_patient_timeseries(
     rescue_arr = np.zeros(n_hours, dtype=int)
     symptom_arr = np.zeros(n_hours, dtype=int)
     sleep_col_arr = np.zeros(n_hours, dtype=float)
+    in_episode_arr = np.zeros(n_hours, dtype=int)
 
     # Base severity symptom baseline
     sev_sym_base = 0 if severity == "Mild" else (1 if severity == "Moderate" else 2)
@@ -150,8 +173,29 @@ def simulate_single_patient_timeseries(
         dt = timestamps[i]
         hour = dt.hour
         day = i // 24
-        day_sleep_val = daily_sleep[min(day, n_days - 1)]
-        sleep_col_arr[i] = day_sleep_val
+
+        # Causal Sleep Assignment:
+        # Before 07:00 AM, use completed night from day - 1 (or baseline night 0)
+        # At or after 07:00 AM, use morning completed night for current day
+        if hour < 7:
+            sleep_col_arr[i] = daily_sleep[max(0, day)]
+        else:
+            sleep_col_arr[i] = daily_sleep[day + 1]
+
+        # Check exacerbation status: prodromal (6-24h prior) vs acute episode
+        is_in_acute = False
+        prodrome_factor = 0.0  # [0.0, 1.0] intensity of pre-attack drift
+
+        for onset, end in episode_windows:
+            if onset <= i < end:
+                is_in_acute = True
+                in_episode_arr[i] = 1
+                break
+            elif (onset - 24) <= i < onset:
+                # 6 to 24h prodromal window before attack onset
+                hours_before = onset - i
+                # Intensity ramps up as onset approaches
+                prodrome_factor = max(prodrome_factor, (24.0 - hours_before) / 24.0)
 
         # Circadian rhythm phase [-1, +1]
         circadian_hr = np.sin(2 * np.pi * (hour - 9) / 24)
@@ -165,6 +209,10 @@ def simulate_single_patient_timeseries(
             steps = int(np.clip(rng.normal(650, 180), 50, 2000))
         else:
             steps = int(np.clip(rng.normal(250, 100), 20, 1200))
+
+        # Acute episodes reduce physical activity
+        if is_in_acute:
+            steps = int(steps * 0.4)
         steps_arr[i] = steps
 
         # Controller medication intake timing (logged at 08:00 if taken that day)
@@ -177,47 +225,49 @@ def simulate_single_patient_timeseries(
             adherence_penalty = 1.2
 
         # Symptom score generation (0 - 10 scale)
-        # Driven by baseline severity + pollution stress + adherence penalty + stochastic flare
+        # Combines baseline severity + pollution stress + adherence lapse + prodromal drift / acute flare
         stress = pollution_stress[i]
-        raw_symptom = sev_sym_base + stress + adherence_penalty + rng.normal(0, 0.45)
-        # Occasional episodic exacerbation spike if high stress
-        if stress > 1.8 and rng.random() < 0.15:
-            raw_symptom += rng.uniform(2.0, 4.0)
+        flare_boost = 5.0 if is_in_acute else (2.5 * prodrome_factor)
+        raw_symptom = sev_sym_base + stress + adherence_penalty + flare_boost + rng.normal(0, 0.4)
 
         symptom_score = int(np.clip(np.round(raw_symptom), 0, 10))
         symptom_arr[i] = symptom_score
 
-        # Rescue puffs follow symptom level
-        if symptom_score <= 2:
-            puffs = int(rng.random() < 0.04)
+        # Rescue puffs follow symptoms & prodrome
+        if is_in_acute:
+            puffs = int(rng.choice([3, 4, 5, 6], p=[0.25, 0.4, 0.25, 0.1]))
+        elif prodrome_factor > 0.4:
+            puffs = int(rng.choice([1, 2, 3], p=[0.4, 0.45, 0.15]))
+        elif symptom_score <= 2:
+            puffs = int(rng.random() < 0.03)
         elif symptom_score <= 4:
             puffs = int(rng.choice([1, 2], p=[0.75, 0.25]))
-        elif symptom_score <= 7:
-            puffs = int(rng.choice([2, 3, 4], p=[0.5, 0.35, 0.15]))
         else:
-            puffs = int(rng.choice([3, 4, 5, 6], p=[0.3, 0.4, 0.2, 0.1]))
+            puffs = int(rng.choice([2, 3, 4], p=[0.5, 0.35, 0.15]))
         rescue_arr[i] = puffs
 
-        # Physiological response to symptoms / distress:
+        # Physiological response to symptoms / distress / prodromal drift
         distress_factor = max(0.0, (symptom_score - 2) * 0.7)
+        if prodrome_factor > 0:
+            distress_factor += 1.2 * prodrome_factor
 
-        # Heart rate (bpm)
+        # Heart rate (bpm): drifts upward during prodrome & acute flare
         activity_hr = min(25.0, steps * 0.015)
-        hr_val = base_hr + (circadian_hr * 7.0) + activity_hr + (distress_factor * 3.5) + rng.normal(0, 2.5)
+        hr_val = base_hr + (circadian_hr * 7.0) + activity_hr + (distress_factor * 3.5) + rng.normal(0, 2.2)
         hr_arr[i] = round(float(np.clip(hr_val, 45.0, 160.0)), 1)
 
-        # Respiratory rate (breaths/min)
-        rr_val = baseline_rr + (circadian_rr * 1.5) + (distress_factor * 1.8) + (steps * 0.002) + rng.normal(0, 0.8)
+        # Respiratory rate (breaths/min): drifts upward 6-24h before onset
+        rr_val = baseline_rr + (circadian_rr * 1.5) + (distress_factor * 1.8) + (steps * 0.002) + rng.normal(0, 0.7)
         rr_arr[i] = round(float(np.clip(rr_val, 10.0, 42.0)), 1)
 
-        # SpO2 (%)
+        # SpO2 (%): drops during nocturnal sleep and pre-flare/acute distress
         night_spo2_dip = 0.8 if is_sleeping else 0.0
-        spo2_drop = distress_factor * 0.9
-        spo2_val = baseline_spo2 - night_spo2_dip - spo2_drop + rng.normal(0, 0.4)
+        spo2_drop = distress_factor * 0.85
+        spo2_val = baseline_spo2 - night_spo2_dip - spo2_drop + rng.normal(0, 0.35)
         spo2_arr[i] = round(float(np.clip(spo2_val, 75.0, 100.0)), 1)
 
-        # HRV RMSSD (ms) - drops under distress / elevation of HR
-        hrv_val = base_hrv - (distress_factor * 3.0) - (hr_val - base_hr) * 0.25 + rng.normal(0, 3.0)
+        # HRV RMSSD (ms): vagal withdrawal, drops early during prodrome
+        hrv_val = base_hrv - (distress_factor * 3.2) - (hr_val - base_hr) * 0.25 + rng.normal(0, 2.8)
         hrv_arr[i] = round(float(np.clip(hrv_val, 8.0, 110.0)), 1)
 
     # Apply sensor dropouts / charging periods

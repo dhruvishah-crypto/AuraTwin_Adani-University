@@ -44,6 +44,11 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
+# Heavy generated data files (keep small sample_*.csv for repo skeleton)
+data/patient_timeseries.csv
+data/labeled_dataset.csv
+data/features.csv
+
 # Models & temp outputs (keep models directory structure via .gitkeep)
 models/*.joblib
 models/*.pkl
