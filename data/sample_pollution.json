@@ -1,16 +1,8 @@
 {
   "dataset": "sample_pollution.csv",
-  "reference_benchmark": {
-    "agency": "Central Pollution Control Board (CPCB) / OpenAQ",
-    "station": "ITO, New Delhi (OpenAQ Location ID: 8118)",
-    "coordinates": {
-      "lat": 28.6287,
-      "lon": 77.2411
-    },
-    "url": "https://openaq.org or https://app.cpcbccr.com/AQI_India/",
-    "parameters": "pm25 (ug/m3), pm10 (ug/m3)"
-  },
-  "source_type": "sourced_sample (offline bundle)",
+  "source_type": "synthetic pollution series (illustrative urban Delhi-range levels; not real measurements)",
+  "target_city_context": "Delhi, India",
+  "is_real_physical_sensor": false,
   "rows": 1440,
   "seed": 42,
   "date_range": [
@@ -18,8 +10,9 @@
     "2026-09-29 23:00:00"
   ],
   "units": {
-    "pm25": "ug/m3",
-    "pm10": "ug/m3",
-    "aqi": "US EPA standard index (derived, separate from raw pm25)"
-  }
+    "pm25": "ug/m3 (primary model feature)",
+    "pm10": "ug/m3 (primary model feature)",
+    "aqi": "Derived US-EPA-style AQI calculated from PM2.5 (NOT India CPCB NAQI; secondary context only)"
+  },
+  "instructions_to_replace_with_real_data": "To replace with real physical sensor data, download hourly PM2.5 and PM10 from CPCB CCR (https://app.cpcbccr.com/AQI_India/) or OpenAQ and save to data/sample_pollution.csv with columns: timestamp, pm25, pm10, city, source, last_updated"
 }

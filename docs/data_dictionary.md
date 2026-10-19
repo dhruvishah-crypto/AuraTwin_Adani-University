@@ -33,7 +33,7 @@ All fields are categorized with explicit data provenance:
 > **CRITICAL LABELING & MODELING NOTICE**:
 > - **Primary Model Features**: Prefer physical concentrations **`pm25`** and **`pm10`** ($\mu g/m^3$) as feature inputs for all machine learning models.
 > - **Derived Index Labeling**: The `aqi` column is specifically a **"Derived US-EPA-style AQI (from PM2.5)"**. It is **NOT** India's CPCB National Air Quality Index (NAQI). It must never be referred to simply as "AQI" without this qualifier in dashboards or documentation, and raw PM2.5 concentration must never be called "AQI".
-> - **Current Data Mode**: The bundled sample file contains **synthetic fallback data calibrated to CPCB Delhi ITO station statistics** (enabling full offline reproducibility).
+> - **Current Data Mode**: The bundled sample file contains a **synthetic pollution series (illustrative urban Delhi-range levels; not real measurements)** (enabling full offline reproducibility).
 
 | Field Name | Type | Units / Allowed Values | Provenance | Description & Labeling Requirement |
 | :--- | :--- | :--- | :--- | :--- |

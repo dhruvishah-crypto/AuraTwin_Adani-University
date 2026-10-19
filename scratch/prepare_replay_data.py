@@ -156,8 +156,8 @@ def main() -> None:
                         for f in explanations.get("feature_attributions", [])[:4]
                     ],
                     "provenance": {
-                        "pm25": "Ambient Sensor Grid (CAAQMS Station 4)",
-                        "vitals": "Simulated Medical Wearable (BLE Telemetry)",
+                        "pm25": "synthetic pollution series (illustrative urban Delhi-range levels; not real measurements)",
+                        "vitals": "Simulated Wearable Stream",
                         "patient": "Synthetic Patient EHR Record",
                     },
                     "missing_data_markers": {

@@ -1517,7 +1517,7 @@ In the candidate relaxed model, only deviation features (`rr_deviation_from_base
 | **Test: All Hours** | `{gap_diag.get('pr_auc_all_hours', {}).get('test', {}).get('logistic_regression', 0.2729):.4f}` | `{gap_diag.get('pr_auc_all_hours', {}).get('test', {}).get('random_forest', 0.4782):.4f}` | `{gap_diag.get('pr_auc_all_hours', {}).get('test', {}).get('constrained_hgb', 0.3734):.4f}` | **`{gap_diag.get('pr_auc_all_hours', {}).get('test', {}).get('middle_constrained_hgb', 0.4536):.4f}`** | `+0.0246` |
 | **Test: At-Risk Hours Only** | `{gap_diag.get('pr_auc_at_risk_hours', {}).get('test', {}).get('logistic_regression', 0.3133):.4f}` | `{gap_diag.get('pr_auc_at_risk_hours', {}).get('test', {}).get('random_forest', 0.5048):.4f}` | `{gap_diag.get('pr_auc_at_risk_hours', {}).get('test', {}).get('constrained_hgb', 0.4640):.4f}` | **`{gap_diag.get('pr_auc_at_risk_hours', {}).get('test', {}).get('middle_constrained_hgb', 0.4996):.4f}`** | **`+0.0052`** |
 
-*Diagnosis Resolution*: The Stage 4c benchmark full-constraint model suffered ranking penalties during recovery hours, producing a {all_val_gap:.4f} validation gap that collapsed by {gap_diag.get('gap_reduction_ratio_val', 0.663)*100:.1f}% on at-risk hours. The operational Middle Variant model relaxes recovery-overlapping features while enforcing monotonicity on features driven by what-if overrides, completely eliminating the validation gap and surpassing Random Forest (`0.4730` vs `0.4698` on all validation hours, and `0.5065` vs `0.4978` on at-risk hours).
+*Diagnosis Resolution*: The Stage 4c benchmark full-constraint model suffered ranking penalties during recovery hours, producing a {all_val_gap:.4f} validation gap that collapsed by {gap_diag.get('gap_reduction_ratio_val', 0.663)*100:.1f}% on at-risk hours. The operational Middle Variant model relaxes recovery-overlapping features while enforcing monotonicity on features driven by what-if overrides, resolving the recovery ranking gap and matching unconstrained Random Forest (`0.4675` vs `0.4698` on all validation hours, and `0.4951` vs `0.4978` on at-risk hours).
 """
 
     text = path.read_text(encoding="utf-8")
@@ -1707,7 +1707,7 @@ Evaluated across 200 randomly sampled test patient-hours through the twin's cohe
 | **Test: All Hours** | `{gap_diag.get('pr_auc_all_hours', {}).get('test', {}).get('logistic_regression', 0.2729):.4f}` | `{gap_diag.get('pr_auc_all_hours', {}).get('test', {}).get('random_forest', 0.4782):.4f}` | `{gap_diag.get('pr_auc_all_hours', {}).get('test', {}).get('constrained_hgb', 0.3734):.4f}` | **`{gap_diag.get('pr_auc_all_hours', {}).get('test', {}).get('middle_constrained_hgb', 0.4536):.4f}`** | `+0.0246` |
 | **Test: At-Risk Hours Only** | `{gap_diag.get('pr_auc_at_risk_hours', {}).get('test', {}).get('logistic_regression', 0.3133):.4f}` | `{gap_diag.get('pr_auc_at_risk_hours', {}).get('test', {}).get('random_forest', 0.5048):.4f}` | `{gap_diag.get('pr_auc_at_risk_hours', {}).get('test', {}).get('constrained_hgb', 0.4640):.4f}` | **`{gap_diag.get('pr_auc_at_risk_hours', {}).get('test', {}).get('middle_constrained_hgb', 0.4996):.4f}`** | **`+0.0052`** |
 
-*Diagnosis Resolution*: The Stage 4c benchmark full-constraint model suffered ranking penalties during recovery hours, producing a {all_val_gap:.4f} validation gap that collapsed by {gap_diag.get('gap_reduction_ratio_val', 0.663)*100:.1f}% on at-risk hours. The operational Middle Variant model relaxes recovery-overlapping features while enforcing monotonicity on features driven by what-if overrides, completely eliminating the validation gap and surpassing Random Forest (`0.4730` vs `0.4698` on all validation hours, and `0.5065` vs `0.4978` on at-risk hours).
+*Diagnosis Resolution*: The Stage 4c benchmark full-constraint model suffered ranking penalties during recovery hours, producing a {all_val_gap:.4f} validation gap that collapsed by {gap_diag.get('gap_reduction_ratio_val', 0.663)*100:.1f}% on at-risk hours. The operational Middle Variant model relaxes recovery-overlapping features while enforcing monotonicity on features driven by what-if overrides, resolving the recovery ranking gap and matching unconstrained Random Forest (`0.4675` vs `0.4698` on all validation hours, and `0.4951` vs `0.4978` on at-risk hours).
 
 ## 10. Feature Group Ablation Analysis
 | Ablation Group | Removed Features Count | PR-AUC | ROC-AUC | Brier Score |
@@ -1988,9 +1988,10 @@ def train_and_evaluate(
     # Explicit Trade-off Check: Is constrained HGB Val PR-AUC > 0.03 below RF?
     pr_gap = val_pr_rf - val_pr_hgb
     pr_gap_exceeds_threshold = pr_gap > 0.03
+    comp_desc = f"surpasses unconstrained Random Forest ({val_pr_rf:.4f}) by {val_pr_hgb - val_pr_rf:+.4f}" if val_pr_hgb >= val_pr_rf else f"is within {val_pr_rf - val_pr_hgb:.4f} of unconstrained Random Forest ({val_pr_rf:.4f})"
     tradeoff_statement = (
-        f"Middle Variant HGB validation PR-AUC ({val_pr_hgb:.4f}) surpasses unconstrained Random Forest ({val_pr_rf:.4f}) "
-        f"by {val_pr_hgb - val_pr_rf:+.4f} while guaranteeing 100% counterfactual what-if monotonicity across all five clinical "
+        f"Middle Variant HGB validation PR-AUC ({val_pr_hgb:.4f}) {comp_desc} "
+        f"while guaranteeing 100% counterfactual what-if monotonicity across all five clinical "
         f"scenario sweeps. Constraints are enforced on exogenous drivers and correlated vitals moved by what-if overrides, "
         f"while relaxing recovery-overlapping features."
     )

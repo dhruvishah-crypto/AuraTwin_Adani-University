@@ -138,120 +138,170 @@ def extract_base_model_and_scaler(model: Any) -> Tuple[Optional[Any], Optional[A
     return clf, scaler
 
 
-def compute_feature_attributions(
-    model: Any,
-    feature_names: List[str],
-    feature_values: np.ndarray,
+def get_personal_baseline_features(
+    feature_dict: Dict[str, Any],
+    personal_baseline: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, float]:
-    """Compute local feature attributions using standardized model coefficients or importances."""
-    clf, scaler = extract_base_model_and_scaler(model)
-    x = np.asarray(feature_values, dtype=float).reshape(1, -1)
+    """Construct baseline feature vector using personal baseline norms."""
+    pb = personal_baseline or {}
+    base_rr = float(pb.get("baseline_resp_rate", feature_dict.get("baseline_resp_rate", 16.0)))
+    base_spo2 = float(pb.get("baseline_spo2", feature_dict.get("baseline_spo2", 96.0)))
+    usual_pm25 = float(pb.get("usual_pm25", 35.0))
+    usual_adh = float(pb.get("usual_controller_adherence", 1.0))
+    usual_symptom = float(pb.get("usual_symptom_score", 1.0))
+    usual_hr = float(pb.get("usual_heart_rate", 72.0))
+    usual_hrv = float(pb.get("usual_hrv", 38.0))
 
-    # 1. If SHAP is installed, attempt SHAP explanation
-    if HAS_SHAP and clf is not None:
-        try:
-            x_scaled = x
-            if scaler is not None and hasattr(scaler, "transform"):
-                x_scaled = scaler.transform(x)
-            explainer = shap.Explainer(clf, x_scaled)
-            shap_values = explainer(x_scaled)
-            if hasattr(shap_values, "values"):
-                vals = shap_values.values[0]
-                if vals.ndim > 1:
-                    vals = vals[:, 1]
-                return {name: round(float(v), 4) for name, v in zip(feature_names, vals)}
-        except Exception as e:
-            logger.debug("SHAP explanation fallback triggered: %s", e)
+    defaults = {
+        # Pollution (Environmental)
+        "pm25_rolling_mean_6h": usual_pm25,
+        "pm25_rolling_max_6h": usual_pm25,
+        "pm25_rolling_mean_24h": usual_pm25,
+        "pm25_rolling_max_24h": usual_pm25,
+        "pm25_rolling_mean_72h": usual_pm25,
+        "pm25_rolling_max_72h": usual_pm25,
+        "pm10_rolling_mean_24h": usual_pm25 * 1.85,
+        "pm10_trend_24h": 0.0,
+        # Breathing & Oxygenation
+        "respiratory_rate_raw": base_rr,
+        "rr_deviation_from_baseline": 0.0,
+        "rr_rolling_mean_6h": base_rr,
+        "rr_rolling_mean_24h": base_rr,
+        "rr_rolling_std_24h": 0.8,
+        "rr_recent_vs_usual": 0.0,
+        "spo2_raw": base_spo2,
+        "spo2_mean_6h": base_spo2,
+        "spo2_min_6h": base_spo2,
+        "spo2_mean_24h": base_spo2,
+        "spo2_min_24h": base_spo2,
+        "spo2_drop_from_baseline": 0.0,
+        "spo2_recent_vs_usual": 0.0,
+        # Medication Adherence
+        "controller_adherence_7d": usual_adh,
+        # Rescue & Symptoms
+        "rescue_puffs_sum_6h": 0.0,
+        "rescue_puffs_sum_24h": 0.0,
+        "rescue_puffs_trend_24h": 0.0,
+        "symptom_score_raw": usual_symptom,
+        "symptom_score_mean_6h": usual_symptom,
+        "symptom_score_mean_24h": usual_symptom,
+        "symptom_score_trend_24h": 0.0,
+        # History & Autonomic Baseline
+        "heart_rate_raw": usual_hr,
+        "hr_rolling_mean_6h": usual_hr,
+        "hr_rolling_mean_24h": usual_hr,
+        "hr_trend_24h": 0.0,
+        "hr_recent_vs_usual": 0.0,
+        "hrv_rmssd_raw": usual_hrv,
+        "hrv_rolling_mean_6h": usual_hrv,
+        "hrv_rolling_mean_24h": usual_hrv,
+        "sleep_hours": 7.5,
+        "sleep_deficit": 0.0,
+        "steps_rolling_sum_24h": 6500.0,
+    }
 
-    # 2. Standardized linear model contributions: w_i * (x_i - mean_i) / std_i
-    if clf is not None and hasattr(clf, "coef_"):
-        coefs = clf.coef_[0]
-        if scaler is not None and hasattr(scaler, "mean_") and hasattr(scaler, "scale_"):
-            means = scaler.mean_
-            scales = scaler.scale_
-            scales_safe = np.where(scales == 0, 1.0, scales)
-            z = (x[0] - means) / scales_safe
-            contributions = coefs * z
-        else:
-            contributions = coefs * x[0]
-
-        return {name: round(float(c), 4) for name, c in zip(feature_names, contributions)}
-
-    # 3. Tree-based model fallback (feature_importances_)
-    if clf is not None and hasattr(clf, "feature_importances_"):
-        importances = clf.feature_importances_
-        return {name: round(float(imp), 4) for name, imp in zip(feature_names, importances)}
-
-    # 4. HistGradientBoostingClassifier fallback (accumulate split gains across boosting trees)
-    if clf is not None and hasattr(clf, "_predictors"):
-        n_feat = len(feature_names)
-        importances = np.zeros(n_feat)
-        for predictor_list in clf._predictors:
-            for tree in predictor_list:
-                nodes = tree.nodes
-                gain_mask = nodes["gain"] > 0
-                np.add.at(importances, nodes["feature_idx"][gain_mask], nodes["gain"][gain_mask])
-        tot = np.sum(importances)
-        if tot > 0:
-            importances /= tot
-        return {name: round(float(imp), 4) for name, imp in zip(feature_names, importances)}
-
-    # Fallback to zero attributions
-    return {name: 0.0 for name in feature_names}
+    base_vec = {k: float(v) for k, v in feature_dict.items() if isinstance(v, (int, float, np.number))}
+    for k, v in defaults.items():
+        if k in base_vec:
+            base_vec[k] = float(v)
+    return base_vec
 
 
-def group_attributions_by_family(
-    attributions: Dict[str, float],
-    feature_values: Dict[str, Any],
-) -> Tuple[Dict[str, Dict[str, Any]], List[Dict[str, Any]]]:
-    """Group feature attributions by signal family and calculate summed logit contributions.
+def compute_occlusion_attributions(
+    model: Any,
+    feature_dict: Dict[str, Any],
+    feature_names: List[str],
+    personal_baseline: Optional[Dict[str, Any]] = None,
+) -> Tuple[Dict[str, Dict[str, Any]], List[Dict[str, Any]], Dict[str, float]]:
+    """Compute local signal-family and feature attributions via personal-baseline occlusion on the operational model.
+
+    Occlusion replaces each family or feature with the patient's personal baseline values,
+    measuring the resulting change in calibrated risk probability and logit.
+    Vectorized into a single batch prediction call across all 5 families and 52 features.
 
     Args:
-        attributions: Mapping of feature_name to attribution score (logit contribution).
-        feature_values: Mapping of feature_name to raw feature values.
+        model: Trained calibrated model or pipeline.
+        feature_dict: Current point-in-time feature dictionary.
+        feature_names: Ordered list of feature column names.
+        personal_baseline: Patient personal rolling baseline dict.
 
     Returns:
-        Tuple of (signal_families_dict, ranked_families_list).
+        Tuple of (signal_families_dict, ranked_families_list, per_feature_attributions_dict).
     """
+    baseline_vec = get_personal_baseline_features(feature_dict, personal_baseline)
+    curr_row = [float(feature_dict.get(c, 0.0)) for c in feature_names]
+
+    rows = [curr_row]  # Index 0 is unoccluded baseline state
+
+    # Rows 1..N_fam: family occlusions
+    fam_keys = list(SIGNAL_FAMILIES.keys())
+    for fam_key in fam_keys:
+        fam_cols = set(SIGNAL_FAMILIES[fam_key]["features"])
+        occ_row = [
+            float(baseline_vec.get(c, feature_dict.get(c, 0.0))) if c in fam_cols else float(feature_dict.get(c, 0.0))
+            for c in feature_names
+        ]
+        rows.append(occ_row)
+
+    # Rows (1 + N_fam)..: per-feature occlusions
+    for col in feature_names:
+        f_occ_row = [
+            float(baseline_vec.get(c, feature_dict.get(c, 0.0))) if c == col else float(feature_dict.get(c, 0.0))
+            for c in feature_names
+        ]
+        rows.append(f_occ_row)
+
+    # Single batch prediction across all 58 rows for maximum speed
+    X_batch = pd.DataFrame(rows, columns=feature_names)
+    all_probs = model.predict_proba(X_batch)[:, 1]
+
+    eps = 1e-5
+    all_clips = np.clip(all_probs, eps, 1.0 - eps)
+    all_logits = np.log(all_clips / (1.0 - all_clips))
+
+    base_prob = float(all_probs[0])
+    base_logit = float(all_logits[0])
+
     family_results: Dict[str, Dict[str, Any]] = {}
     ranked_list: List[Dict[str, Any]] = []
 
-    for fam_key, fam_meta in SIGNAL_FAMILIES.items():
-        fam_label = fam_meta["label"]
-        fam_cols = fam_meta["features"]
-
-        per_feature: Dict[str, float] = {}
-        summed_logit = 0.0
-
-        for col in fam_cols:
-            attr = float(attributions.get(col, 0.0))
-            per_feature[col] = attr
-            summed_logit += attr
-
-        # Identify primary driver feature within the family
-        if per_feature:
-            primary_feat = max(per_feature.items(), key=lambda kv: abs(kv[1]))[0]
-        else:
-            primary_feat = fam_cols[0] if fam_cols else "unknown"
-
-        direction = "increases_risk" if summed_logit > 0.005 else ("decreases_risk" if summed_logit < -0.005 else "neutral")
+    for i, fam_key in enumerate(fam_keys):
+        occ_prob = float(all_probs[1 + i])
+        occ_logit = float(all_logits[1 + i])
+        prob_delta = base_prob - occ_prob
+        logit_delta = base_logit - occ_logit
+        direction = "increases_risk" if prob_delta > 0.005 else ("decreases_risk" if prob_delta < -0.005 else "neutral")
 
         entry = {
             "family": fam_key,
-            "label": fam_label,
-            "summed_logit_contribution": round(summed_logit, 4),
+            "label": SIGNAL_FAMILIES[fam_key]["label"],
+            "summed_logit_contribution": round(logit_delta, 4),
+            "risk_delta": round(prob_delta, 5),
             "direction": direction,
-            "primary_driver": primary_feat,
-            "feature_count": len(fam_cols),
-            "per_feature_detail": per_feature,
+            "base_prob": round(base_prob, 4),
+            "occluded_prob": round(occ_prob, 4),
+            "feature_count": len([c for c in SIGNAL_FAMILIES[fam_key]["features"] if c in feature_names]),
+            "per_feature_detail": {},
         }
         family_results[fam_key] = entry
         ranked_list.append(entry)
 
-    # Rank families primarily by summed logit contribution (highest risk driver first)
     ranked_list.sort(key=lambda x: x["summed_logit_contribution"], reverse=True)
 
-    return family_results, ranked_list
+    offset = 1 + len(fam_keys)
+    per_feature_attributions: Dict[str, float] = {}
+    for j, col in enumerate(feature_names):
+        f_occ_logit = float(all_logits[offset + j])
+        per_feature_attributions[col] = round(base_logit - f_occ_logit, 4)
+
+    for fam_key, fam_meta in SIGNAL_FAMILIES.items():
+        fam_cols = [c for c in fam_meta["features"] if c in feature_names]
+        feat_detail = {c: per_feature_attributions.get(c, 0.0) for c in fam_cols}
+        family_results[fam_key]["per_feature_detail"] = feat_detail
+        if feat_detail:
+            family_results[fam_key]["primary_driver"] = max(feat_detail.items(), key=lambda kv: abs(kv[1]))[0]
+
+    return family_results, ranked_list, per_feature_attributions
 
 
 def generate_transparent_reason_codes(
@@ -417,13 +467,13 @@ def explain_prediction(
     else:
         feature_columns = list(feature_columns)
 
-    feature_values = np.array([float(row_dict.get(c, 0.0)) for c in feature_columns])
-
-    # 1. Compute secondary per-feature attributions
-    per_feature_attributions = compute_feature_attributions(model, feature_columns, feature_values)
-
-    # 2. Compute primary signal families with summed logit contributions
-    signal_families, family_ranking = group_attributions_by_family(per_feature_attributions, row_dict)
+    # 1 & 2. Compute primary signal families and per-feature attributions directly from the operational model via baseline occlusion
+    signal_families, family_ranking, per_feature_attributions = compute_occlusion_attributions(
+        model=model,
+        feature_dict=row_dict,
+        feature_names=feature_columns,
+        personal_baseline=personal_baseline,
+    )
 
     # 3. Generate transparent clinical reason codes
     reason_codes = generate_transparent_reason_codes(
@@ -434,12 +484,20 @@ def explain_prediction(
 
     output_label = SCENARIO_LABEL if is_scenario else "observed"
 
+    # Form feature attributions list for UI convenience
+    feature_attributions_list = [
+        {"feature": feat, "attribution_delta": delta, "reason_code": f"{feat}: {delta:+.4f}"}
+        for feat, delta in sorted(per_feature_attributions.items(), key=lambda kv: abs(kv[1]), reverse=True)
+    ]
+
     return {
         "output_label": output_label,
         "signal_families": signal_families,
+        "signal_family_contributions": signal_families,
         "family_ranking": family_ranking,
         "reason_codes": reason_codes,
         "per_feature_attributions": per_feature_attributions,
-        "method": "shap" if HAS_SHAP else "model_coefficients",
+        "feature_attributions": feature_attributions_list,
+        "method": "operational_model_baseline_occlusion",
         "disclaimer": MANDATORY_EXPLANATION_DISCLAIMER,
     }

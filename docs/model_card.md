@@ -52,7 +52,7 @@ Evaluated across 200 randomly sampled test patient-hours through the twin's cohe
 
 - **Operational Model Selection**: `CONSTRAINED_HGB` (Middle Variant HGB with 25 monotonic constraints)
 - **Clinical Rationale & Trade-off**:
-  > Middle Variant HGB validation PR-AUC (0.4675) surpasses unconstrained Random Forest (0.4698) by -0.0023 while guaranteeing 100% counterfactual what-if monotonicity across all five clinical scenario sweeps. Constraints are enforced on exogenous drivers and correlated vitals moved by what-if overrides, while relaxing recovery-overlapping features.
+  > Middle Variant HGB validation PR-AUC (0.4675) is within 0.0023 of unconstrained Random Forest (0.4698) while guaranteeing 100% counterfactual what-if monotonicity across all five clinical scenario sweeps. Constraints are enforced on exogenous drivers and correlated vitals moved by what-if overrides, while relaxing recovery-overlapping features.
 
 ## 5. Post-Hoc Probability Calibration
 - **Method**: Isotonic Regression fitted strictly on the **VALIDATION** patients (never test data).
@@ -126,7 +126,7 @@ Evaluated across 200 randomly sampled test patient-hours through the twin's cohe
 | **Test: All Hours** | `0.2729` | `0.4782` | `0.3742` | **`0.4688`** | `+0.0246` |
 | **Test: At-Risk Hours Only** | `0.3133` | `0.5048` | `0.4743` | **`0.4977`** | **`+0.0052`** |
 
-*Diagnosis Resolution*: The Stage 4c benchmark full-constraint model suffered ranking penalties during recovery hours, producing a 0.0903 validation gap that collapsed by 73.3% on at-risk hours. The operational Middle Variant model relaxes recovery-overlapping features while enforcing monotonicity on features driven by what-if overrides, completely eliminating the validation gap and surpassing Random Forest (`0.4730` vs `0.4698` on all validation hours, and `0.5065` vs `0.4978` on at-risk hours).
+*Diagnosis Resolution*: The Stage 4c benchmark full-constraint model suffered ranking penalties during recovery hours, producing a 0.0903 validation gap that collapsed by 73.3% on at-risk hours. The operational Middle Variant model relaxes recovery-overlapping features while enforcing monotonicity on features driven by what-if overrides, resolving the recovery ranking gap and closely matching Random Forest (`0.4675` vs `0.4698` on all validation hours, and `0.4951` vs `0.4978` on at-risk hours).
 
 ## 10. Feature Group Ablation Analysis
 | Ablation Group | Removed Features Count | PR-AUC | ROC-AUC | Brier Score |

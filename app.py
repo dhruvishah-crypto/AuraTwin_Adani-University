@@ -164,8 +164,8 @@ def render_header(pollution_time: str) -> None:
         st.markdown(
             f"""
             <div style="text-align: right; font-size: 12px; color: #94a3b8; padding-top: 10px;">
-                <b>Pollution Source:</b> CAAQMS Continuous Ambient Air Quality Station 4<br/>
-                <b>Wearable Telemetry:</b> Multi-sensor BLE Stream (Simulated)<br/>
+                <b>Pollution Source:</b> synthetic pollution series (illustrative urban Delhi-range levels; not real measurements)<br/>
+                <b>Wearable Source:</b> Simulated Wearable Stream<br/>
                 <b>Data Synchronized:</b> <code style="color: #38bdf8;">{pollution_time}</code>
             </div>
             """,
@@ -274,7 +274,7 @@ def main() -> None:
         [
             "1️⃣ Patient Overview",
             "2️⃣ Multimodal Signals",
-            "3️⃣ Risk Forecast & SHAP",
+            "3️⃣ Risk Forecast & Explanation",
             "4️⃣ Twin History Timeline",
             "5️⃣ What-If Laboratory",
             "🚨 Early-Warning Evaluation",
@@ -337,8 +337,8 @@ def main() -> None:
         with q1:
             st.markdown(
                 """
-                **Wearable Sensor BLE Stream**  
-                <span class="badge-provenance badge-wearable">Active Telemetry</span>  
+                **Wearable Sensor Stream**  
+                <span class="badge-provenance badge-wearable">Simulated Wearable Stream</span>  
                 - Heart Rate & HRV: Synchronized (1 Hz)  
                 - Respiratory Rate: Acoustic sensor nominal  
                 - SpO2 PPG: Pulse oximetry online
@@ -349,10 +349,9 @@ def main() -> None:
             st.markdown(
                 """
                 **Ambient Environmental Grid**  
-                <span class="badge-provenance badge-ambient">CAAQMS Station 4</span>  
-                - PM2.5 / PM10: Continuous hourly telemetry  
-                - Temperature & Humidity: Calibrated  
-                - Geofence: 2.4 km from patient residence
+                <span class="badge-provenance badge-ambient">Synthetic Pollution Series</span>  
+                - PM2.5 / PM10: Continuous hourly synthetic pollution series (illustrative urban Delhi-range levels; not real measurements)  
+                - Temperature & Humidity: Environmental baseline covariates
                 """,
                 unsafe_allow_html=True,
             )
@@ -391,9 +390,9 @@ def main() -> None:
                 shared_xaxes=True,
                 vertical_spacing=0.06,
                 subplot_titles=(
-                    "Environmental Pollution: PM2.5 (µg/m³) & AQI [Ambient Sensor]",
-                    "Respiratory Telemetry: Respiratory Rate (bpm) & SpO2 (%) [Wearable BLE]",
-                    "Cardiac Autonomic: Heart Rate (bpm) & HRV RMSSD (ms) [Wearable PPG]",
+                    "Environmental Pollution: PM2.5 (µg/m³) & AQI [synthetic pollution series (illustrative urban Delhi-range levels; not real measurements)]",
+                    "Respiratory Metrics: Respiratory Rate (bpm) & SpO2 (%) [Simulated Wearable Stream]",
+                    "Cardiac Autonomic: Heart Rate (bpm) & HRV RMSSD (ms) [Simulated Wearable Stream]",
                     "Patient Diary: Adherence (%), Rescue Puffs & Symptom Score (0-4) [Synthetic Diary]",
                 ),
             )
@@ -532,11 +531,11 @@ def main() -> None:
             st.info("No signal observations available in selected slice.")
 
     # -------------------------------------------------------------------------
-    # PANEL 3: Risk Forecast & SHAP Explanations
+    # PANEL 3: Risk Forecast & Explanation
     # -------------------------------------------------------------------------
     with tab_forecast:
-        st.subheader("24-Hour Exacerbation Risk Forecast")
-        st.caption("Point-in-time calibrated risk score, demonstration operational band, and transparent signal-family attributions.")
+        st.subheader("24-Hour Exacerbation Risk Forecast & Explanation")
+        st.caption("Point-in-time calibrated risk score, demonstration operational band, and transparent signal-family attributions via personal-baseline occlusion on the operational model.")
 
         prob = current_record.get("probability", 0.05)
         score_100 = current_record.get("risk_score_100", int(round(prob * 100)))
@@ -569,7 +568,7 @@ def main() -> None:
 
         with fc2:
             st.markdown("#### Primary Signal-Family Contributions")
-            st.caption("Summed model contribution grouped into clinical domains:")
+            st.caption("Risk logit delta from occluding signal families to the patient's personal baseline:")
             family_contrib = current_record.get("family_contributions", {})
             if family_contrib:
                 fam_df = pd.DataFrame(
@@ -600,7 +599,7 @@ def main() -> None:
 
         with fc3:
             st.markdown("#### Transparent Clinical Reason Codes")
-            st.caption("Key physiological & environmental deviations driving current forecast:")
+            st.caption("Key physiological & environmental deviations driving current forecast (personal-baseline occlusion):")
             reasons = current_record.get("top_reasons", [])
             if reasons:
                 for r in reasons:
@@ -759,12 +758,18 @@ def main() -> None:
             st.session_state["whatif_spo2"] = float(current_record.get("spo2", 96.0))
         if pcol2.button("💨 Severe Pollution Surge (PM2.5=140)"):
             st.session_state["whatif_pm25"] = 140.0
-        if pcol3.button("💊 Complete Adherence Lapse (0%)"):
+        if pcol3.button("💊 Adherence Lapse + Rescue Spike (Combined)"):
             st.session_state["whatif_adh"] = 10.0
+            st.session_state["whatif_puffs"] = 4.0
         if pcol4.button("⚡ Acute Attack Prodrome (RR+4, SpO2 90)"):
             st.session_state["whatif_rr_shift"] = 4.0
             st.session_state["whatif_spo2"] = 90.0
             st.session_state["whatif_puffs"] = 4.0
+
+        st.caption(
+            "Demo scenario combining a controller-adherence drop with a rescue-use rise. "
+            "In this model the effect comes mainly from the rescue-use change; adherence alone has a small effect (see README)."
+        )
 
         # Reset button
         if st.button("🔄 Reset Sliders to Current Observed State"):

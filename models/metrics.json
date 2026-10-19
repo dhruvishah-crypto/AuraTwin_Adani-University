@@ -34,7 +34,7 @@
       "iters_run": 600
     }
   },
-  "tradeoff_analysis": "Middle Variant HGB validation PR-AUC (0.4675) surpasses unconstrained Random Forest (0.4698) by -0.0023 while guaranteeing 100% counterfactual what-if monotonicity across all five clinical scenario sweeps. Constraints are enforced on exogenous drivers and correlated vitals moved by what-if overrides, while relaxing recovery-overlapping features.",
+  "tradeoff_analysis": "Middle Variant HGB validation PR-AUC (0.4675) is within 0.0023 of unconstrained Random Forest (0.4698) while guaranteeing 100% counterfactual what-if monotonicity across all five clinical scenario sweeps. Constraints are enforced on exogenous drivers and correlated vitals moved by what-if overrides, while relaxing recovery-overlapping features.",
   "val_pr_auc_gap_rf_minus_hgb": 0.0023,
   "linear_process_note": "Logistic Regression performs comparably to tree ensembles because the underlying simulator risk formulation is predominantly linear in the logit space.",
   "split_summary": {

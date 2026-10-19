@@ -31,7 +31,7 @@ POLLUTION_COLUMNS = ["timestamp", "pm25", "pm10", "aqi", "city", "source", "last
 RECOMMENDED_PUBLIC_SOURCES = {
     "Delhi": {
         "agency": "Central Pollution Control Board (CPCB) / OpenAQ",
-        "station": "ITO, New Delhi (OpenAQ Location ID: 8118)",
+        "station": "Delhi urban ambient monitor (e.g. CPCB CCR or OpenAQ)",
         "coordinates": {"lat": 28.6287, "lon": 77.2411},
         "url": "https://openaq.org or https://app.cpcbccr.com/AQI_India/",
         "parameters": "pm25 (ug/m3), pm10 (ug/m3)",
@@ -235,11 +235,11 @@ def create_attributed_sample_csv(
     hours: int = 1440,
     seed: int = 42,
 ) -> Path:
-    """Create a bundled attributed sample CSV benchmarked on real station distributions.
+    """Create a bundled synthetic pollution series (illustrative urban Delhi-range levels; not real measurements).
 
     Args:
         output_path: Target CSV file path.
-        city: Attributed reference city.
+        city: Reference city context.
         hours: Number of hourly time steps.
         seed: Random seed.
 
@@ -250,16 +250,15 @@ def create_attributed_sample_csv(
     out_file.parent.mkdir(parents=True, exist_ok=True)
 
     df = generate_synthetic_pollution(hours=hours, city=city, seed=seed)
-    # Explicitly mark that this offline sample is a synthetic series calibrated to CPCB Delhi station distributions
-    df["source"] = "synthetic (calibrated to CPCB Delhi ITO benchmark)"
+    df["source"] = "synthetic pollution series (illustrative urban Delhi-range levels; not real measurements)"
     df.to_csv(out_file, index=False)
 
     # Write companion metadata JSON
     meta_path = out_file.with_suffix(".json")
     meta = {
         "dataset": "sample_pollution.csv",
-        "reference_benchmark": RECOMMENDED_PUBLIC_SOURCES.get(city, {}),
-        "source_type": "synthetic fallback (calibrated to CPCB Delhi ITO station distribution for offline operation)",
+        "source_type": "synthetic pollution series (illustrative urban Delhi-range levels; not real measurements)",
+        "target_city_context": city,
         "is_real_physical_sensor": False,
         "rows": len(df),
         "seed": seed,
@@ -271,7 +270,7 @@ def create_attributed_sample_csv(
         },
         "instructions_to_replace_with_real_data": (
             "To replace with real physical sensor data, download hourly PM2.5 and PM10 from "
-            "CPCB CCR (https://app.cpcbccr.com/AQI_India/) or OpenAQ for station ITO New Delhi "
+            "CPCB CCR (https://app.cpcbccr.com/AQI_India/) or OpenAQ "
             "and save to data/sample_pollution.csv with columns: timestamp, pm25, pm10, city, source, last_updated"
         ),
     }
@@ -327,7 +326,7 @@ def ingest_pollution(
     remote_data = fetch_openaq_data(city=city)
     if remote_data is not None and not remote_data.empty:
         # If openaq returned valid data, map it
-        logger.info("Successfully fetched live data from OpenAQ.")
+        logger.info("Successfully fetched remote data from OpenAQ.")
         # Proceed with remote_data mapping if structured
 
     # 3. Synthetic Fallback

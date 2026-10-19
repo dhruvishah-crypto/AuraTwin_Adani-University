@@ -192,9 +192,10 @@ old_tradeoff = '''    tradeoff_statement = (
         )
     )'''
 
-new_tradeoff = '''    tradeoff_statement = (
-        f"Middle Variant HGB validation PR-AUC ({val_pr_hgb:.4f}) surpasses unconstrained Random Forest ({val_pr_rf:.4f}) "
-        f"by {val_pr_hgb - val_pr_rf:+.4f} while guaranteeing 100% counterfactual what-if monotonicity across all five clinical "
+new_tradeoff = '''    comp_desc = f"surpasses unconstrained Random Forest ({val_pr_rf:.4f}) by {val_pr_hgb - val_pr_rf:+.4f}" if val_pr_hgb >= val_pr_rf else f"is within {val_pr_rf - val_pr_hgb:.4f} of unconstrained Random Forest ({val_pr_rf:.4f})"
+    tradeoff_statement = (
+        f"Middle Variant HGB validation PR-AUC ({val_pr_hgb:.4f}) {comp_desc} "
+        f"while guaranteeing 100% counterfactual what-if monotonicity across all five clinical "
         f"scenario sweeps. Constraints are enforced on exogenous drivers and correlated vitals moved by what-if overrides, "
         f"while relaxing recovery-overlapping features."
     )'''

@@ -13,8 +13,8 @@ flowchart TD
     %% Input Sources
     subgraph S1["1. Multimodal Input Layer"]
         EHR["Synthetic EHR Profiles<br/>(Age, Sex, Severity, Baseline RR/SpO2, Comorbidities, Medications)"]
-        POL["Ambient Pollution Grid (CAAQMS)<br/>(Hourly PM2.5, PM10 Telemetry)"]
-        WEAR["Continuous Wearable Telemetry<br/>(Respiratory Rate, HR, HRV RMSSD, SpO2, Sleep, Symptoms, Adherence)"]
+        POL["synthetic pollution series<br/>(illustrative urban Delhi-range levels; not real measurements)"]
+        WEAR["Simulated Wearable Stream<br/>(Respiratory Rate, HR, HRV RMSSD, SpO2, Sleep, Symptoms, Adherence)"]
     end
 
     %% Feature Fusion Layer
@@ -36,7 +36,7 @@ flowchart TD
     subgraph S4["4. Interactive Clinical Dashboard & What-If Lab"]
         P1["(1) Patient Overview<br/>Visible Synthetic Banner"]
         P2["(2) Signal Charts<br/>Plotly Telemetry + Provenance Badges"]
-        P3["(3) Risk Forecast & SHAP<br/>0-100 Score + Demo Band"]
+        P3["(3) Risk Forecast & Explanation<br/>0-100 Score + Demo Band"]
         P4["(4) Twin History Timeline<br/>Forecast Shift Audit Log"]
         P5["(5) What-If Laboratory<br/>Sliders + Band Effect Sizes + Coherent Overrides"]
         P6["(6) Early-Warning Panel<br/>Anticipated/Late/Missed Benchmarks vs Baselines"]
@@ -72,8 +72,8 @@ flowchart TD
 
 ### 2.1 Multimodal Ingestion Layer
 - **Synthetic EHR Records (`src/load_ehr.py`)**: Realistic static patient demographic and clinical characteristics (severity, prior exacerbations in 12 months, prescribed maintenance controllers, baseline respiratory rate, baseline pulse oximetry, and comorbid allergic rhinitis, GERD, obesity, hypertension).
-- **Continuous Ambient Air Quality Monitoring Station (CAAQMS) (`src/ingest_pollution.py`)**: Hourly continuous PM2.5 and PM10 concentrations reflecting urban atmospheric dynamics, diurnal rush-hour peaks, and episodic meteorological inversions.
-- **Continuous Wearable Telemetry (`src/simulate_wearables.py`)**: Continuous multi-sensor BLE streams capturing respiratory rate (acoustic sensing), pulse oximetry (PPG SpO2), cardiac autonomic tone (HR and HRV RMSSD), sleep duration, daily rescue inhaler usage, and patient symptom diary entries.
+- **synthetic pollution series (`src/ingest_pollution.py`)**: Hourly continuous PM2.5 and PM10 concentrations synthesized with seasonal background trends, diurnal rush-hour peaks, and episodic meteorological inversions (illustrative urban Delhi-range levels; not real measurements).
+- **Simulated Wearable Stream (`src/simulate_wearables.py`)**: Continuous multi-sensor simulated wearable streams capturing respiratory rate (acoustic sensing), pulse oximetry (PPG SpO2), cardiac autonomic tone (HR and HRV RMSSD), sleep duration, daily rescue inhaler usage, and patient symptom diary entries.
 
 ### 2.2 Feature Fusion & Temporal Leakage Guardrails (`src/build_features.py`)
 - **Strictly Past-Looking Windows**: All 52 engineered features utilize strictly historical rolling aggregations (6h, 24h, 72h). Future timestamps are inaccessible to prevent future lookahead leakage.
@@ -85,14 +85,14 @@ flowchart TD
 - **Stateful Representation**: The `DigitalTwin` class encapsulates patient profile, telemetry buffers, personalized baselines, data quality flags, and chronological trajectory history.
 - **Monotonic HistGradientBoosting Classifier**: Incorporates 25 pathophysiological domain constraints. Enforces non-decreasing risk under worsening air pollution, escalating tachypnea, dropping oxygen saturation, and escalating rescue inhaler use, alongside non-increasing risk under improved controller adherence.
 - **Isotonic Calibration**: Post-hoc probability calibrator trained strictly on validation split patient data, aligning predicted probabilities with true empirical event rates (Brier score $0.0526$, calibration slope $0.9786$).
-- **Interpretability via Signal-Family Grouping**: Risk attributions are aggregated into 5 clinically intuitive families: *Pollution Exposure*, *Breathing & Oxygenation*, *Rescue & Symptoms*, *Medication Adherence*, and *Patient History*. Feature contributions are translated into human-readable clinical reason code bullets.
+- **Interpretability via Signal-Family Grouping**: Risk attributions are computed via personal-baseline occlusion on the operational model and aggregated into 5 clinically intuitive families: *Pollution Exposure*, *Breathing & Oxygenation*, *Rescue & Symptoms*, *Medication Adherence*, and *Patient History*. Feature contributions are translated into human-readable clinical reason code bullets.
 - **Non-Destructive Counterfactual What-If Simulation**: In `twin.what_if()`, hypothetical interventions create isolated feature copies with coherent cascading updates (e.g., PM2.5 shifts update all 6h, 24h, and 72h mean/max derivations simultaneously) without mutating stored historical twin states.
 
 ### 2.4 Doctor-Facing Dashboard & Decision Support (`app.py`)
 Built with Streamlit and Plotly across 6 cohesive tabs:
 1. **Patient Overview**: Prominent "SYNTHETIC PATIENT" banner, clinical EHR demographics, and sensor telemetry health metrics.
 2. **Multimodal Signals**: Synchronized interactive Plotly charts showing ambient PM2.5/AQI, respiratory rate, SpO2, heart rate, HRV RMSSD, adherence, rescue inhaler puffs, and symptom scores with provenance badges and missing-data flags.
-3. **Risk Forecast & SHAP**: Integer 0-100 score, demonstration risk bands (Low, Watch, High), last-updated timestamp, signal-family grouped bar charts, and transparent reason code bullets.
+3. **Risk Forecast & Explanation**: Integer 0-100 score, demonstration risk bands (Low, Watch, High), last-updated timestamp, signal-family grouped bar charts (personal-baseline occlusion), and transparent reason code bullets.
 4. **Twin History Timeline**: Chronological trajectory graph tracking risk evolution over time, paired with an automated shift audit log detailing why the forecast shifted.
 5. **What-If Laboratory**: Dynamic scenario sliders with test-set effect sizes displayed next to each slider ("typical effect for patients in this risk band", with adherence labeled as "small effect in this model"), preset interventions, side-by-side comparison cards, and a reset button.
 6. **Early-Warning Evaluation**: Full holdout test-set benchmarks displaying anticipated vs. late vs. missed onsets, median lead time (12.0 hours), alert precision vs. the baseline PM2.5 rule, and stricter false-alert accounting from `models/metrics.json`.
