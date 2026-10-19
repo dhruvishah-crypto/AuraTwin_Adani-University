@@ -1,0 +1,20 @@
+{
+  "dataset": "episodes.csv",
+  "provenance": "simulated_evaluation_only",
+  "total_episodes": 1398,
+  "unique_patients": 295,
+  "columns": [
+    "patient_id",
+    "episode_id",
+    "onset_hour",
+    "onset_timestamp",
+    "end_hour",
+    "end_timestamp",
+    "duration_hours",
+    "prodrome_hours",
+    "is_silent",
+    "amplitude"
+  ],
+  "seed": 42,
+  "disclaimer": "Episode onsets saved strictly for model evaluation and test metrics. Never used as features."
+}

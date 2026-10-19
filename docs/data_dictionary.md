@@ -69,24 +69,38 @@ All fields are categorized with explicit data provenance:
 ## 4. Simulated Exacerbation Event Modeling & Assumptions (`src/simulate_events.py`)
 
 > **CLINICAL DISCLAIMER**:
-> All risk coefficients listed below represent **explicit modeling assumptions** designed to evaluate machine learning learning curves on a simulated stochastic process. They are **NOT** clinical facts, validated medical guidelines, or real-world predictive risk calculators.
+> All risk coefficients, hazard equations, and episode dynamics listed below represent **explicit simulation assumptions** designed to evaluate machine learning learning curves on a synthetic stochastic process. They are **NOT** clinical facts, validated medical guidelines, or real-world predictive risk calculators.
 
-The target label **`event_next_24h`** is generated via a transparent logit risk model with stochastic shocks:
-$$P(\text{event}_{t+1:t+24} = 1) = \frac{1}{1 + \exp(-z_{i, t})}$$
+The target label **`event_next_24h`** is generated via an **episode-based exacerbation simulator**:
+$$\text{event\_next\_24h}(t) = 1 \iff \exists t_{\text{onset}} \in (t, t + 24\text{h}]$$
 
-| Parameter / Factor | Value | Modeling Assumption (NOT Clinical Fact) |
+### 1. Exogenous Hourly Hazard Model
+Discrete exacerbation onsets are sampled sequentially per patient from an hourly hazard driven **strictly by exogenous drivers** (physiological signals are consequences of the episode, never drivers of onset):
+$$\text{logit\_hazard}(t) = \beta_0 + \beta_{\text{vuln}} (\text{vuln} - 0.5) + \beta_{\text{sev}} (\text{sev} - 2) + \beta_{\text{prior}} (\min(\text{prior}, 4) - 1.5) + \beta_{\text{pm25}} \max(0, \text{pm25}_{24h} - 35) (1 + 0.35 \cdot \text{poll\_sens}) + \beta_{\text{lapse}} \cdot \text{lapse} + \epsilon_t + \eta_t$$
+
+| Parameter / Factor | Value | Simulator Modeling Assumption (NOT Clinical Fact) |
 | :--- | :--- | :--- |
-| **Intercept ($\beta_0$)** | `-7.40` | Positions cohort baseline daily risk to achieve a realistic demo event rate of ~8-11%. |
-| **Hidden Latent Truth ($\beta_{\text{latent}}$)** | `+1.60` | Biological airway vulnerability known only to the simulator. Ensures models cannot achieve deterministic overfit. |
-| **Asthma Severity ($\beta_{\text{sev}}$)** | `+0.45` | Structural disease severity phenotype (0=Mild, 1=Moderate, 2=Severe) raises baseline exacerbation susceptibility. |
-| **Prior Exacerbations ($\beta_{\text{exac}}$)** | `+0.28` | History of exacerbations in the preceding 12 months reflects individual frequency phenotype. |
-| **PM2.5 Exposure ($\beta_{\text{pm25}}$)** | `+0.018` | Prolonged 24h rolling PM2.5 above $35\,\mu g/m^3$ triggers inflammation, amplified by pollution sensitivity. |
-| **Missed Controller ($\beta_{\text{adh}}$)** | `+0.85` | Lapsed daily controller medication adherence over the past 7 days increases airway instability. |
-| **Rescue Puffs ($\beta_{\text{rescue}}$)** | `+0.32` | Escalating rescue SABA inhaler actuations indicate active symptom breakthrough. |
-| **Symptom Score ($\beta_{\text{sym}}$)** | `+0.25` | Patient-reported symptom diary ratings above baseline indicate escalating distress. |
-| **Respiratory Rate Deviation ($\beta_{\text{rr}}$)** | `+0.15` | Tachypnea (breaths/min elevated above personal baseline) reflects physiologic compensation. |
-| **SpO2 Drop ($\beta_{\text{spo2}}$)** | `+0.35` | Oxygen saturation deficit below personal baseline reflects acute gas-exchange impairment. |
-| **Heart Rate Elevation ($\beta_{\text{hr}}$)** | `+0.04` | Acute resting heart rate elevation relative to 72h baseline signals autonomic distress. |
-| **Gaussian Noise ($\sigma$)** | `0.45` | Idiosyncratic micro-variations and physiological fluctuation noise. |
-| **Unobserved Shock Probability** | `3.5%` | Models unmeasured real-world triggers (viral infections, indoor irritants, emotional distress). |
-| **Shock Magnitude** | `[1.2, 2.5]` | Additive logit boost when an unobserved shock occurs. |
+| **Baseline Intercept ($\beta_0$)** | `-5.85` | Calibrates inter-episode frequency to target ~1 episode per 10–25 patient-days (~4.7 episodes / 60 days). |
+| **Hidden Latent Vulnerability ($\beta_{\text{vuln}}$)** | `+0.65` | Ground-truth biological susceptibility known only to the simulator (mean 0.5, range [0, 1]). |
+| **Asthma Severity ($\beta_{\text{sev}}$)** | `+0.35` | EHR disease phenotype (Mild=1, Moderate=2, Severe=3) modulates baseline hazard. |
+| **Prior Exacerbations ($\beta_{\text{prior}}$)** | `+0.12` | Historical 12-month exacerbation count reflects personal recurrence phenotype. |
+| **Ambient PM2.5 Exposure ($\beta_{\text{pm25}}$)** | `+0.012` | Rolling 24-hour PM2.5 exposure exceeding $35\,\mu\text{g/m}^3$, scaled by individual pollution sensitivity (Low=1, Med=2, High=3). |
+| **Controller Adherence Lapse ($\beta_{\text{lapse}}$)** | `+0.55` | Exogenous missed daily controller medication intake adds airway vulnerability on lapse days. |
+| **Gaussian Noise ($\epsilon_t$)** | `\mathcal{N}(0, 0.35^2)` | Uncorrelated hourly physiological variability. |
+| **Stochastic Shocks ($\eta_t$)** | `P=1.2%, [1.0, 2.0]` | Models unmeasured acute triggers (e.g., viral exposure, allergen spike, physical overexertion). |
+
+### 2. Episode Dynamics & Prodromal Window
+When an onset triggers at hour $t_{\text{onset}}$:
+1. **Refractory Period**: A **72-hour refractory period** is enforced after each episode ends during which hazard is strictly zero.
+2. **Episode Duration**: Uniformly sampled $D \in [12, 48]$ hours.
+3. **Prodromal Window**: Uniformly sampled $W \in [6, 24]$ hours prior to onset ($[t_{\text{onset}} - W, t_{\text{onset}})$).
+4. **Silent Episodes**: **30% of episodes** are randomly designated as "silent" (weak or negligible prodromal drift, prodrome multiplier $\approx 0.08$), preventing trivial detection.
+5. **Non-Silent Prodromal Drift**: Accelerating non-linear ramp $\phi(t) = \tau^{1.3} \cdot \alpha$:
+   - **Respiratory Rate**: Rises $+ (2.0 - 4.5)\,\text{bpm}$ above baseline.
+   - **SpO2**: Drops $- (1.5 - 3.5)\%$ below baseline.
+   - **Rescue Inhaler Puffs**: Escalating puff frequency (1–3 puffs).
+   - **Symptom Diary**: Worsens by $+ (2.0 - 4.0)$ points on 0–10 scale.
+   - **Heart Rate / HRV**: Mild tachycardia and vagal withdrawal.
+6. **Acute Flare**: Signals remain severely elevated throughout $[t_{\text{onset}}, t_{\text{onset}} + D)$ (RR $+5.5\,\text{bpm}$, SpO2 $-4.0\%$, symptom score 6–9, rescue puffs 3–6).
+7. **Recovery Phase**: 18-hour smooth decay returning physiological channels to baseline.
+8. **Evaluation Storage**: Onset timestamps and episode attributes are saved to `data/episodes.csv` strictly for evaluation and alarm-fatigue modeling. Onset flags and episode metadata are never used as model features.

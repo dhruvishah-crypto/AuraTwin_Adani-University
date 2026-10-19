@@ -171,3 +171,64 @@ class TestEventSimulation:
         feats, _ = test_features_and_latent
         assert "latent_vulnerability" not in feats.columns
         assert "latent_vulnerability" not in FEATURE_COLUMNS
+
+    def test_no_feature_uses_episode_info(self) -> None:
+        """Verify model feature columns contain zero episode ground-truth or future onset leakage."""
+        forbidden_substrings = [
+            "episode",
+            "onset",
+            "prodrome",
+            "silent",
+            "refractory",
+            "hazard",
+            "duration",
+            "event_next_24h",
+            "simulated_risk_prob",
+        ]
+        with open("models/feature_columns.json", "r", encoding="utf-8") as f:
+            cols = json.load(f)
+
+        for c in cols:
+            for forbidden in forbidden_substrings:
+                assert forbidden not in c.lower(), f"Feature '{c}' leaks episode simulator metadata '{forbidden}'!"
+
+    def test_prodrome_signals_rise_before_onset_on_average(self) -> None:
+        """Verify prodromal signals (RR, symptoms, rescue puffs) rise and SpO2 drops before onset on average."""
+        patients_df, _ = generate_patient_profiles(num_patients=10, seed=42)
+        poll_df = generate_synthetic_pollution(hours=720, city="Delhi", seed=42)
+
+        prodrome_rrs, baseline_rrs = [], []
+        prodrome_syms, baseline_syms = [], []
+        prodrome_puffs, baseline_puffs = [], []
+        prodrome_spo2s, baseline_spo2s = [], []
+
+        for _, pat in patients_df.iterrows():
+            ts, eps = simulate_single_patient_timeseries(pat, poll_df, seed=42, return_episodes=True)
+            for ep in eps:
+                if ep["is_silent"]:
+                    continue  # Only evaluate non-silent episodes for prodromal drift
+                onset = ep["onset_hour"]
+                prod_len = ep["prodrome_hours"]
+                if onset - prod_len < 24:
+                    continue
+
+                prod_window = ts.iloc[onset - prod_len : onset]
+                base_window = ts.iloc[max(0, onset - prod_len - 48) : max(1, onset - prod_len - 12)]
+
+                prodrome_rrs.append(prod_window["respiratory_rate"].mean())
+                baseline_rrs.append(base_window["respiratory_rate"].mean())
+
+                prodrome_syms.append(prod_window["symptom_score"].mean())
+                baseline_syms.append(base_window["symptom_score"].mean())
+
+                prodrome_puffs.append(prod_window["rescue_puffs"].mean())
+                baseline_puffs.append(base_window["rescue_puffs"].mean())
+
+                prodrome_spo2s.append(prod_window["spo2"].mean())
+                baseline_spo2s.append(base_window["spo2"].mean())
+
+        assert len(prodrome_rrs) > 0, "No non-silent episodes were found for prodromal testing!"
+        assert np.nanmean(prodrome_rrs) > np.nanmean(baseline_rrs), "RR did not rise during prodrome on average!"
+        assert np.nanmean(prodrome_syms) > np.nanmean(baseline_syms), "Symptom score did not rise during prodrome on average!"
+        assert np.nanmean(prodrome_puffs) > np.nanmean(baseline_puffs), "Rescue puffs did not rise during prodrome on average!"
+        assert np.nanmean(prodrome_spo2s) < np.nanmean(baseline_spo2s), "SpO2 did not drop during prodrome on average!"

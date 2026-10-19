@@ -108,7 +108,7 @@ class TestDigitalTwinHardening:
         assert abs(rr_feats["rr_recent_vs_usual"] - (orig_rr_trend + shift)) < 1e-4
 
     def test_what_if_monotonicity(self, twin: DigitalTwin) -> None:
-        """Verify monotonicity: higher PM2.5 -> risk not lower; higher adherence -> risk not higher; larger RR shift -> risk not lower."""
+        """Verify monotonicity: higher PM2.5 -> risk not lower; higher adherence -> risk not higher; larger RR shift -> risk not lower; sweeps for rescue puffs and SpO2; and check >= 0.02 responsiveness across PM2.5 10 to 150."""
         twin.update_twin("PT0001")
 
         # 1. Monotonicity for PM2.5: risk not lower as PM2.5 increases
@@ -116,6 +116,12 @@ class TestDigitalTwinHardening:
         pm_risks = [twin.what_if("PT0001", {"pm25_level": val})["scenario_risk"]["probability"] for val in pm_levels]
         for i in range(len(pm_risks) - 1):
             assert pm_risks[i + 1] >= pm_risks[i], f"PM2.5 monotonicity violated: {pm_risks}"
+
+        # Plausible range responsiveness check: risk increases by at least 0.02 across PM2.5 10 to 150
+        pm_delta = pm_risks[-1] - pm_risks[0]
+        assert pm_delta >= 0.02, (
+            f"PM2.5 what-if responsiveness too low: delta={pm_delta:.4f} < 0.02 across {pm_levels} (risks={pm_risks})"
+        )
 
         # 2. Monotonicity for Adherence: risk not higher as adherence increases
         adh_levels = [10.0, 30.0, 60.0, 80.0, 100.0]
@@ -134,6 +140,24 @@ class TestDigitalTwinHardening:
         ]
         for i in range(len(rr_risks) - 1):
             assert rr_risks[i + 1] >= rr_risks[i], f"RR shift monotonicity violated: {rr_risks}"
+
+        # 4. Monotonicity for Rescue Inhaler Puffs: risk not lower as rescue puffs increase
+        puffs_levels = [0.0, 1.0, 2.0, 4.0, 8.0]
+        puffs_risks = [
+            twin.what_if("PT0001", {"rescue_puffs": val})["scenario_risk"]["probability"]
+            for val in puffs_levels
+        ]
+        for i in range(len(puffs_risks) - 1):
+            assert puffs_risks[i + 1] >= puffs_risks[i], f"Rescue puffs monotonicity violated: {puffs_risks}"
+
+        # 5. Monotonicity for SpO2: risk not lower as SpO2 drops (decreasing SpO2 -> non-decreasing risk)
+        spo2_levels = [98.0, 96.0, 94.0, 91.0, 88.0]
+        spo2_risks = [
+            twin.what_if("PT0001", {"spo2": val})["scenario_risk"]["probability"]
+            for val in spo2_levels
+        ]
+        for i in range(len(spo2_risks) - 1):
+            assert spo2_risks[i + 1] >= spo2_risks[i], f"SpO2 drop monotonicity violated: {spo2_risks}"
 
     def test_stale_data_quality_flags(self, twin: DigitalTwin) -> None:
         """Verify channels forward-filled for > 6 hours are flagged in current_state['data_quality']."""

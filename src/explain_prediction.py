@@ -182,6 +182,20 @@ def compute_feature_attributions(
         importances = clf.feature_importances_
         return {name: round(float(imp), 4) for name, imp in zip(feature_names, importances)}
 
+    # 4. HistGradientBoostingClassifier fallback (accumulate split gains across boosting trees)
+    if clf is not None and hasattr(clf, "_predictors"):
+        n_feat = len(feature_names)
+        importances = np.zeros(n_feat)
+        for predictor_list in clf._predictors:
+            for tree in predictor_list:
+                nodes = tree.nodes
+                gain_mask = nodes["gain"] > 0
+                np.add.at(importances, nodes["feature_idx"][gain_mask], nodes["gain"][gain_mask])
+        tot = np.sum(importances)
+        if tot > 0:
+            importances /= tot
+        return {name: round(float(imp), 4) for name, imp in zip(feature_names, importances)}
+
     # Fallback to zero attributions
     return {name: 0.0 for name in feature_names}
 

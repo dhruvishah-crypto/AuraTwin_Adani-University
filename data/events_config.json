@@ -1,26 +1,39 @@
 {
-  "simulator": "src/simulate_events.py",
   "target_label": "event_next_24h",
+  "definition": "event_next_24h(t) = 1 if an exacerbation episode onset occurs in (t, t + 24h], else 0",
+  "lookahead_hours": 24,
+  "refractory_hours": 72,
+  "silent_episode_fraction": 0.3,
+  "duration_hours_range": [
+    12,
+    48
+  ],
+  "prodrome_hours_range": [
+    6,
+    24
+  ],
+  "target_positive_fraction_range": [
+    0.05,
+    0.15
+  ],
+  "target_inter_episode_days_range": [
+    10.0,
+    25.0
+  ],
+  "exogenous_drivers": [
+    "pm25_rolling_mean_24h",
+    "controller_adherence_lapse",
+    "asthma_severity_numeric",
+    "prior_exacerbations_12m",
+    "pollution_sensitivity_numeric",
+    "latent_vulnerability",
+    "gaussian_noise",
+    "stochastic_shocks"
+  ],
+  "disclaimer": "All parameters and equations represent simulation assumptions for evaluating the RespiraTwin digital twin, not validated clinical facts.",
   "seed": 42,
-  "event_rate": 0.0908,
+  "event_rate": 0.0777,
   "total_samples": 432000,
-  "coefficients_assumptions": {
-    "intercept": -7.4,
-    "beta_latent_vulnerability": 1.6,
-    "beta_prior_exacerbations": 0.28,
-    "beta_asthma_severity": 0.45,
-    "beta_pm25_exposure": 0.018,
-    "beta_missed_controller": 0.85,
-    "beta_rescue_puffs": 0.32,
-    "beta_symptom_score": 0.25,
-    "beta_rr_deviation": 0.15,
-    "beta_spo2_drop": 0.35,
-    "beta_hr_elevation": 0.04,
-    "noise_std": 0.45,
-    "shock_probability": 0.035,
-    "shock_magnitude_min": 1.2,
-    "shock_magnitude_max": 2.5
-  },
-  "provenance": "simulated",
-  "clinical_disclaimer": "Coefficients represent modeling assumptions for evaluating digital twin learning mechanisms on a simulated process. They are NOT clinical predictions or medical guidance."
+  "total_episodes": 1398,
+  "timestamp": "2026-10-18T00:45:00.047535"
 }
