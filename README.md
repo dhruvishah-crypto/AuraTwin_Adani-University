@@ -47,6 +47,19 @@ Asthma affects over 300 million individuals globally, causing acute exacerbation
 - **Post-Hoc Isotonic Probability Calibration**: Fitted strictly on validation split patient hours to ensure that predicted risk probabilities accurately reflect empirical event rates (Brier score $0.0526$, calibration slope $0.9786$, intercept $-0.0041$).
 - **Comparative Trade-off & Operational Wording**: On the holdout test set across true **at-risk hours** (excluding active attacks and recovery/refractory periods), the operational constrained HistGradientBoosting model **matches Random Forest within about 0.003 PR-AUC** (Constrained HGB: `0.4951` validation / `0.4977` test vs. Random Forest: `0.4978` validation / `0.5048` test; val gap = $0.0027$). On **all hours**, the operational model trails Random Forest (Test PR-AUC: `0.4688` vs. `0.4782`) because unconstrained decision trees exploit non-monotonic splits on recovery-period vitals where hazard is artificially zero, whereas constrained HGB remains bound by pathophysiological domain priors to achieve 100% monotonicity across all what-if scenario sweeps.
 
+### Model Artifact & Provenance
+- **File**: `models/model.joblib`
+- **Size**: 2,251,830 bytes (2.15 MB)
+- **SHA-256 Checksum**: `bf587af9370a682de3f9888516aaa619650a8b396b3ee3cc942b9c28906feae0`
+- **Serialization Environment**:
+  - `scikit-learn`: `1.9.1`
+  - `joblib`: `1.6.0`
+  - `numpy`: `2.5.4`
+  - `pandas`: `3.0.6`
+- **Security Warning**:
+  > [!WARNING]
+  > `joblib` files are Python `pickle`-based binary serializations that can execute arbitrary code during unpickling. Only load `models/model.joblib` from this trusted repository. Never load untrusted `.joblib` or `.pkl` files from third-party or unknown sources.
+
 ---
 
 # Results (With Simulation-Only Disclaimer)

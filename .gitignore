@@ -44,12 +44,27 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-# Heavy generated data files (keep small sample_*.csv for repo skeleton)
+# Heavy generated data files (keep small sample_*.csv and runtime artifacts)
 data/patient_timeseries.csv
 data/labeled_dataset.csv
 data/features.csv
+!data/sample_*.csv
+!data/sample_pollution.json
+!data/replay_episodes.json
+!data/patients.csv
+!data/latent_truth.csv
+!data/episodes.csv
+!data/*.json
 
-# Models & temp outputs (keep models directory structure via .gitkeep)
-models/*.joblib
-models/*.pkl
+# Models & temp outputs (explicitly track required model artifacts and diagnostics)
+models/*
 !models/.gitkeep
+!models/model.joblib
+!models/feature_columns.json
+!models/monotonic_constraints.json
+!models/metrics.json
+!models/whatif_effects.json
+!models/adherence_diagnosis.json
+!models/calibration_curve.png
+!models/roc_pr_curve.png
+!models/*.png
