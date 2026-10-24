@@ -130,6 +130,21 @@ When reviewing a synthetic patient profile, a clinician can:
 
 ---
 
+## Technical Stack
+
+| Layer / Component | Technologies & Frameworks | Description & Purpose |
+| :--- | :--- | :--- |
+| **Core Runtime & Data Processing** | **Python 3.10+**, **Pandas**, **NumPy** | High-performance feature engineering, rolling window metrics, and data validation |
+| **AI / Machine Learning Framework** | **scikit-learn** (`HistGradientBoostingClassifier`) | Gradient boosted decision trees enforcing 25 domain monotonic constraints |
+| **Probability Calibration** | **scikit-learn** (`IsotonicRegression`), **Joblib** | Non-parametric isotonic probability calibration & model serialization |
+| **Clinical Explainability** | Custom Personal-Baseline Occlusion Engine | Patient-relative feature attribution & rule-based clinical reason codes |
+| **Interactive Clinician Dashboard** | **Streamlit**, **Plotly Graph Objects** | Responsive web workstation, interactive telemetry streaming & what-if controls |
+| **Testing & CI Verification** | **Pytest** | Comprehensive test suite (49 automated unit and data integrity tests) |
+| **Architecture & Documentation** | **Mermaid.js**, Markdown, PDF, PPTX | System architecture visualizations & clinical pitch deck deliverables |
+
+---
+
+
 ## 4. Data Streams and Provenance
 
 All bundled datasets in this repository are synthetic or simulated. The ambient pollution series reflects illustrative urban Delhi-range concentrations and does not represent actual monitoring station records.
