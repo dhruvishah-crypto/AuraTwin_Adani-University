@@ -73,7 +73,7 @@ RespiraTwin is a simulation-based respiratory digital twin proof of concept that
 
 ## Project Links
 
-- **GitHub Repository:** https://github.com/dhruvishah-crypto/digital-twin-challenge
+- **GitHub Repository:** https://github.com/dhruvishah-crypto/AuraTwin_Adani-University
 - **Live Demonstration:** [Installation and Execution](#9-installation-and-execution) guide.
 - **20+ Minute Demonstration Video:** [https://youtu.be/TGKLNOVrROA](https://youtu.be/TGKLNOVrROA)
 > 💡 **Note for Judges & Evaluators:** Please ensure playback quality is set to **1080p HD** (click the **⚙️ Settings / Gear icon** on the player $\rightarrow$ **Quality** $\rightarrow$ select **1080p**) so that interactive Streamlit telemetry dashboards, time-series metrics, and terminal code executions render with native full-resolution clarity.
@@ -480,8 +480,8 @@ The clinician workstation is implemented in Streamlit ([app.py](app.py)) and Plo
 ### Clone Repository and Set Up Environment
 
 ```bash
-git clone https://github.com/dhruvishah-crypto/digital-twin-challenge.git
-cd digital-twin-challenge
+git clone https://github.com/dhruvishah-crypto/AuraTwin_Adani-University.git
+cd AuraTwin_Adani-University
 ```
 
 Create and activate a virtual environment:
@@ -556,7 +556,7 @@ python src/train_model.py --data data/labeled_dataset.csv --features_json models
 ## 10. Repository Structure
 
 ```text
-digital-twin-challenge/
+AuraTwin_Adani-University/
 ├── .gitignore
 ├── Agents.md
 ├── LICENSE
@@ -627,7 +627,7 @@ digital-twin-challenge/
 
 | Requirement | Deliverable Location / Relative Link | Status |
 | :--- | :--- | :---: |
-| **Public Code Repository** | https://github.com/dhruvishah-crypto/digital-twin-challenge | Available |
+| **Public Code Repository** | https://github.com/dhruvishah-crypto/AuraTwin_Adani-University | Available |
 | **Team Information** | [Team and Institutional Details](#team-and-institutional-details) (`AuraTwin`, Adani University — Solo Member: Dhruvi Shah) | Completed |
 | **Working Prototype** | [app.py](app.py) and [src/digital_twin.py](src/digital_twin.py) | Available |
 | **EHR & Dynamic Telemetry Fusion** | [src/build_features.py](src/build_features.py) and [docs/data_dictionary.md](docs/data_dictionary.md) | Documented |
