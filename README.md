@@ -613,7 +613,7 @@ digital-twin-challenge/
 | Requirement | Deliverable Location / Relative Link | Status |
 | :--- | :--- | :---: |
 | **Public Code Repository** | https://github.com/dhruvishah-crypto/digital-twin-challenge | Available |
-| **Team Information** | [Team and Institutional Details](#team-and-institutional-details) (`AuraTwin`, Adani University) | Completed |
+| **Team Information** | [Team and Institutional Details](#team-and-institutional-details) (`AuraTwin`, Adani University — Solo Member: Dhruvi Shah) | Completed |
 | **Working Prototype** | [app.py](app.py) and [src/digital_twin.py](src/digital_twin.py) | Available |
 | **EHR & Dynamic Telemetry Fusion** | [src/build_features.py](src/build_features.py) and [docs/data_dictionary.md](docs/data_dictionary.md) | Documented |
 | **Model & Evaluation Methodology** | [src/train_model.py](src/train_model.py), [models/metrics.json](models/metrics.json), [docs/model_card.md](docs/model_card.md) | Documented |
