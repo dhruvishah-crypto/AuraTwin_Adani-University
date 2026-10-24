@@ -68,3 +68,13 @@ models/*
 !models/calibration_curve.png
 !models/roc_pr_curve.png
 !models/*.png
+
+# Video build artifacts
+video_build/
+
+# Scratch & temporary build artifacts
+scratch/*
+!scratch/compute_whatif_effects.py
+!scratch/diagnose_adherence.py
+!scratch/prepare_replay_data.py
+

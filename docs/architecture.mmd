@@ -1,0 +1,55 @@
+---
+title: "RespiraTwin: System Architecture"
+---
+flowchart LR
+  subgraph INPUTS["1 · Multimodal inputs"]
+    EHR["Synthetic historical EHR<br/>Demographics, severity, prior events,<br/>comorbidities, controller Rx, baseline RR/SpO₂"]
+    ENV["synthetic pollution series (not real measurements)<br/>PM2.5 / PM10, source provenance,<br/>AQI clearly labelled by index definition"]
+    WEAR["Simulated wearable + patient diary<br/>RR, HR, HRV RMSSD, SpO₂, sleep/activity,<br/>adherence, rescue puffs, symptoms"]
+  end
+  subgraph FUSION["2 · Validation and feature fusion"]
+    QA["Schema and range checks<br/>Missingness and stale-channel flags (>6 h)"]
+    FEAT["52 past-looking features<br/>Rolling 6 h / 24 h / 72 h summaries<br/>Past-only rolling features; no look-ahead"]
+    BASE["Personalized baseline<br/>14–30 day lookback, excluding latest 72 h"]
+  end
+  subgraph TWIN["3 · Digital twin engine"]
+    STATE["Virtual patient state<br/>Profile, telemetry buffers, quality flags,<br/>timestamped trajectory"]
+    PRED["Risk predictor<br/>models/model.joblib (2.15 MB)<br/>Constrained HistGradientBoosting + isotonic calibration<br/>24 h simulated risk probability + 0–100 demo score"]
+    EXPLAIN["Explainability + history<br/>Five signal families + reason codes (personal-baseline occlusion)<br/>append-only forecast/shift history"]
+  end
+  subgraph UI["4 · Clinician-facing dashboard"]
+    OVERVIEW["Patient overview + synthetic banner"]
+    SIGNALS["Synchronized telemetry charts + provenance"]
+    FORECAST["Risk forecast + explanations"]
+    HISTORY["Twin history + shift audit"]
+    WHATIF["What-if lab: isolated scenario copy<br/>recompute features; history unchanged"]
+    EVAL["Early-warning evaluation + patient replay"]
+  end
+  EHR --> QA
+  ENV --> QA
+  WEAR --> QA
+  QA --> FEAT --> BASE --> STATE
+  FEAT --> STATE
+  STATE --> PRED --> EXPLAIN
+  STATE --> EXPLAIN
+  EXPLAIN --> OVERVIEW
+  EXPLAIN --> SIGNALS
+  EXPLAIN --> FORECAST
+  EXPLAIN --> HISTORY
+  STATE --> WHATIF
+  EXPLAIN --> EVAL
+  WHATIF -. "hypothetical inputs only; stored history unchanged" .-> FEAT
+
+  subgraph TRAIN["Offline training and evaluation"]
+    GEN["Synthetic cohort + event labels"] --> BUILD["Temporal features + patient-level split"] --> TRAINMODELS["Compare LR / RF / constrained HGB;<br/>validation-only isotonic calibration"] --> ART["Artifacts: model.joblib (2.15 MB), metrics.json,<br/>whatif_effects.json"]
+  end
+  ART -. "trained artifact loaded at runtime" .-> PRED
+  NOTE["Safety note: synthetic-data proof of concept only; results do not establish real-world clinical accuracy."]
+  classDef input fill:#EAF1FF,stroke:#2457C5,color:#102A43,stroke-width:1.2px;
+  classDef fusion fill:#E5F7F7,stroke:#087E8B,color:#102A43,stroke-width:1.2px;
+  classDef twin fill:#F1EBFF,stroke:#7048B8,color:#102A43,stroke-width:1.2px;
+  classDef ui fill:#FFF4DF,stroke:#A85D08,color:#102A43,stroke-width:1.2px;
+  class EHR,ENV,WEAR input;
+  class QA,FEAT,BASE fusion;
+  class STATE,PRED,EXPLAIN twin;
+  class OVERVIEW,SIGNALS,FORECAST,HISTORY,WHATIF,EVAL ui;
